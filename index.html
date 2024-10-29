@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pintar en Canvas con Compás</title>
+    <style>
+        body { display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; position: relative; }
+        canvas { border: 1px solid #000; }
+        .toolbar {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background-color: rgba(255, 255, 255, 0.9);
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0px 0px 5px rgba(0, 0, 0, 0.2);
+        }
+        .toolbar button {
+            margin: 5px;
+            padding: 8px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="toolbar">
+        <button id="freeDraw">Dibujo libre</button>
+        <button id="compassDraw">Dibujar con compás</button>
+    </div>
+    <canvas id="canvas" width="800" height="600"></canvas>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        let drawingMode = 'free'; // Modo de dibujo actual (libre o compás)
+        let painting = false;
+        let center = null; // Punto central para el compás
+        let radius = 0;
+        let startAngle = 0;
+        let endAngle = 0;
+        let drawingArc = false;
+
+        // Modo libre: Dibujo de líneas libres con el mouse
+        function startFreeDraw(e) {
+            painting = true;
+            drawFree(e);
+        }
+
+        function endFreeDraw() {
+            painting = false;
+            ctx.beginPath();
+        }
+
+        function drawFree(e) {
+            if (!painting || drawingMode !== 'free') return;
+            
+            ctx.lineWidth = 5;
+            ctx.lineCap = 'round';
+            ctx.strokeStyle = 'black';
+
+            ctx.lineTo(e.clientX - canvas.offsetLeft, e.clientY - canvas.offsetTop);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(e.clientX - canvas.offsetLeft, e.clientY - canvas.offsetTop);
+        }
+
+        // Modo compás: Dibuja un arco con el mouse
+        function startCompassDraw(e) {
+            const x = e.clientX - canvas.offsetLeft;
+            const y = e.clientY - canvas.offsetTop;
+            
+            if (!center) {
+                center = { x, y }; // Define el centro del círculo
+                radius = 0;
+                drawingArc = false;
+            } else if (!drawingArc) {
+                // Define el radio y el ángulo de inicio
+                radius = Math.hypot(x - center.x, y - center.y);
+                startAngle = Math.atan2(y - center.y, x - center.x);
+                drawingArc = true;
+            } else {
+                // Define el ángulo final y dibuja el arco
+                endAngle = Math.atan2(y - center.y, x - center.x);
+                drawArc(center, radius, startAngle, endAngle);
+                center = null; // Reinicia para un nuevo arco
+                drawingArc = false;
+            }
+        }
+
+        function drawArc(center, radius, startAngle, endAngle) {
+            ctx.beginPath();
+            ctx.arc(center.x, center.y, radius, startAngle, endAngle);
+            ctx.strokeStyle = 'blue';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        }
+
+        function updateCompassGuide(e) {
+            if (center && drawingArc) {
+                const x = e.clientX - canvas.offsetLeft;
+                const y = e.clientY - canvas.offsetTop;
+
+                // Limpia el canvas antes de redibujar la guía
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                // Dibuja la guía del círculo completo
+                ctx.beginPath();
+                ctx.arc(center.x, center.y, radius, 0, 2 * Math.PI);
+                ctx.strokeStyle = 'rgba(0, 0, 255, 0.2)';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+
+                // Dibuja la línea indicadora
+                ctx.beginPath();
+                ctx.moveTo(center.x, center.y);
+                ctx.lineTo(x, y);
+                ctx.strokeStyle = 'red';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+            }
+        }
+
+        // Cambia el modo de dibujo
+        document.getElementById('freeDraw').addEventListener('click', () => {
+            drawingMode = 'free';
+            center = null; // Reinicia el punto central
+        });
+
+        document.getElementById('compassDraw').addEventListener('click', () => {
+            drawingMode = 'compass';
+            center = null; // Reinicia para el modo compás
+            ctx.beginPath(); // Limpia cualquier línea previa
+        });
+
+        // Eventos para el modo libre
+        canvas.addEventListener('mousedown', (e) => {
+            if (drawingMode === 'free') startFreeDraw(e);
+        });
+        canvas.addEventListener('mouseup', (e) => {
+            if (drawingMode === 'free') endFreeDraw(e);
+        });
+        canvas.addEventListener('mousemove', drawFree);
+
+        // Eventos para el modo compás
+        canvas.addEventListener('click', startCompassDraw);
+        canvas.addEventListener('mousemove', updateCompassGuide);
+    </script>
+</body>
+</html>
