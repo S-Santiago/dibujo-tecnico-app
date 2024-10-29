@@ -1,12 +1,24 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pintar en Canvas con Compás</title>
     <style>
-        body { display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; position: relative; }
-        canvas { border: 1px solid #000; }
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            position: relative;
+        }
+
+        canvas {
+            border: 1px solid #000;
+        }
+
         .toolbar {
             position: absolute;
             top: 20px;
@@ -16,155 +28,107 @@
             border-radius: 8px;
             box-shadow: 0px 0px 5px rgba(0, 0, 0, 0.2);
         }
-        .toolbar label, .toolbar button, .toolbar input {
+
+        .toolbar label,
+        .toolbar button,
+        .toolbar input {
             display: block;
             margin: 5px 0;
         }
+
         .toolbar label {
             font-size: 14px;
         }
     </style>
 </head>
+
 <body>
     <div class="toolbar">
         <button id="freeDraw">Dibujo libre</button>
-        <button id="compassDraw">Dibujar con compás</button>
+        <button id="toggleRuler">Mostrar/Ocultar regla</button>
 
         <label for="colorPicker">Color del trazo:</label>
         <input type="color" id="colorPicker" value="#000000">
 
         <label for="lineWidth">Grosor del trazo:</label>
-        <input type="range" id="lineWidth" min="1" max="20" value="5">
+        <input type="range" id="lineWidth" min="1" max="20" value="5" step="1">
     </div>
     <canvas id="canvas" width="800" height="600"></canvas>
 
     <script>
-        const canvas = document.getElementById('canvas');
-        const ctx = canvas.getContext('2d');
-        let drawingMode = 'free'; // Modo de dibujo actual (libre o compás)
-        let painting = false;
-        let center = null; // Punto central para el compás
-        let radius = 0;
-        let startAngle = 0;
-        let endAngle = 0;
-        let drawingArc = false;
+        const canvas = document.getElementById("canvas");
+        const ctx = canvas.getContext("2d");
 
-        // Configuración de color y grosor
-        let color = document.getElementById('colorPicker').value;
-        let lineWidth = document.getElementById('lineWidth').value;
+        let drawing = false;
+        let showRuler = false;
+        let startX, startY;
+        let rulerY = canvas.height - 50; // Posición inicial de la regla
+        let draggingRuler = false;
 
-        document.getElementById('colorPicker').addEventListener('input', (e) => {
-            color = e.target.value;
-        });
+        // Función para dibujar la regla
+        function drawRuler() {
+            ctx.fillStyle = "#DDDDDD";
+            ctx.fillRect(0, rulerY, canvas.width, 50);
 
-        document.getElementById('lineWidth').addEventListener('input', (e) => {
-            lineWidth = e.target.value;
-        });
-
-        // Modo libre: Dibujo de líneas libres con el mouse
-        function startFreeDraw(e) {
-            painting = true;
-            drawFree(e);
+            ctx.strokeStyle = "#000";
+            ctx.lineWidth = 1;
+            for (let i = 0; i < canvas.width; i += 10) {
+                const height = i % 100 === 0 ? 15 : i % 50 === 0 ? 10 : 5;
+                ctx.beginPath();
+                ctx.moveTo(i, rulerY);
+                ctx.lineTo(i, rulerY + height);
+                ctx.stroke();
+            }
         }
 
-        function endFreeDraw() {
-            painting = false;
-            ctx.beginPath();
-        }
+        // Evento para activar/desactivar la regla
+        document.getElementById("toggleRuler").onclick = () => {
+            showRuler = !showRuler;
+            draw();
+        };
 
-        function drawFree(e) {
-            if (!painting || drawingMode !== 'free') return;
-            
-            ctx.lineWidth = lineWidth;
-            ctx.lineCap = 'round';
-            ctx.strokeStyle = color;
-
-            ctx.lineTo(e.clientX - canvas.offsetLeft, e.clientY - canvas.offsetTop);
-            ctx.stroke();
-            ctx.beginPath();
-            ctx.moveTo(e.clientX - canvas.offsetLeft, e.clientY - canvas.offsetTop);
-        }
-
-        // Modo compás: Dibuja un arco con el mouse
-        function startCompassDraw(e) {
-            const x = e.clientX - canvas.offsetLeft;
-            const y = e.clientY - canvas.offsetTop;
-            
-            if (!center) {
-                center = { x, y }; // Define el centro del círculo
-                radius = 0;
-                drawingArc = false;
-            } else if (!drawingArc) {
-                // Define el radio y el ángulo de inicio
-                radius = Math.hypot(x - center.x, y - center.y);
-                startAngle = Math.atan2(y - center.y, x - center.x);
-                drawingArc = true;
+        // Evento para mover la regla
+        canvas.onmousedown = (e) => {
+            if (showRuler && e.offsetY >= rulerY && e.offsetY <= rulerY + 50) {
+                draggingRuler = true;
             } else {
-                // Define el ángulo final y dibuja el arco
-                endAngle = Math.atan2(y - center.y, x - center.x);
-                drawArc(center, radius, startAngle, endAngle);
-                center = null; // Reinicia para un nuevo arco
-                drawingArc = false;
+                drawing = true;
+                startX = e.offsetX;
+                startY = e.offsetY;
             }
-        }
+        };
 
-        function drawArc(center, radius, startAngle, endAngle) {
-            ctx.beginPath();
-            ctx.arc(center.x, center.y, radius, startAngle, endAngle);
-            ctx.strokeStyle = color;
-            ctx.lineWidth = lineWidth;
-            ctx.stroke();
-        }
+        canvas.onmouseup = () => {
+            drawing = false;
+            draggingRuler = false;
+        };
 
-        function updateCompassGuide(e) {
-            if (center && drawingArc) {
-                const x = e.clientX - canvas.offsetLeft;
-                const y = e.clientY - canvas.offsetTop;
+        canvas.onmousemove = (e) => {
+            if (draggingRuler) {
+                rulerY = e.offsetY;
+                draw();
+            } else if (drawing && showRuler) {
+                const currentY = e.offsetY;
+                const lineY = currentY > rulerY + 10 ? rulerY + 50 : rulerY;
 
-                // Limpia el canvas antes de redibujar la guía
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-                // Dibuja la guía del círculo completo
                 ctx.beginPath();
-                ctx.arc(center.x, center.y, radius, 0, 2 * Math.PI);
-                ctx.strokeStyle = 'rgba(0, 0, 255, 0.2)';
-                ctx.lineWidth = 1;
+                ctx.moveTo(startX, lineY);
+                ctx.lineTo(e.offsetX, lineY);
                 ctx.stroke();
-
-                // Dibuja la línea indicadora
-                ctx.beginPath();
-                ctx.moveTo(center.x, center.y);
-                ctx.lineTo(x, y);
-                ctx.strokeStyle = 'red';
-                ctx.lineWidth = 1;
-                ctx.stroke();
+                startX = e.offsetX;
             }
+        };
+
+        // Redibuja el lienzo y la regla
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            if (showRuler) drawRuler();
         }
 
-        // Cambia el modo de dibujo
-        document.getElementById('freeDraw').addEventListener('click', () => {
-            drawingMode = 'free';
-            center = null; // Reinicia el punto central
-        });
+        draw();
 
-        document.getElementById('compassDraw').addEventListener('click', () => {
-            drawingMode = 'compass';
-            center = null; // Reinicia para el modo compás
-            ctx.beginPath(); // Limpia cualquier línea previa
-        });
-
-        // Eventos para el modo libre
-        canvas.addEventListener('mousedown', (e) => {
-            if (drawingMode === 'free') startFreeDraw(e);
-        });
-        canvas.addEventListener('mouseup', (e) => {
-            if (drawingMode === 'free') endFreeDraw(e);
-        });
-        canvas.addEventListener('mousemove', drawFree);
-
-        // Eventos para el modo compás
-        canvas.addEventListener('click', startCompassDraw);
-        canvas.addEventListener('mousemove', updateCompassGuide);
     </script>
 </body>
+
+
 </html>
