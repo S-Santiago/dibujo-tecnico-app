@@ -16,11 +16,12 @@
             border-radius: 8px;
             box-shadow: 0px 0px 5px rgba(0, 0, 0, 0.2);
         }
-        .toolbar button {
-            margin: 5px;
-            padding: 8px;
+        .toolbar label, .toolbar button, .toolbar input {
+            display: block;
+            margin: 5px 0;
+        }
+        .toolbar label {
             font-size: 14px;
-            cursor: pointer;
         }
     </style>
 </head>
@@ -28,6 +29,12 @@
     <div class="toolbar">
         <button id="freeDraw">Dibujo libre</button>
         <button id="compassDraw">Dibujar con compás</button>
+
+        <label for="colorPicker">Color del trazo:</label>
+        <input type="color" id="colorPicker" value="#000000">
+
+        <label for="lineWidth">Grosor del trazo:</label>
+        <input type="range" id="lineWidth" min="1" max="20" value="5">
     </div>
     <canvas id="canvas" width="800" height="600"></canvas>
 
@@ -41,6 +48,18 @@
         let startAngle = 0;
         let endAngle = 0;
         let drawingArc = false;
+
+        // Configuración de color y grosor
+        let color = document.getElementById('colorPicker').value;
+        let lineWidth = document.getElementById('lineWidth').value;
+
+        document.getElementById('colorPicker').addEventListener('input', (e) => {
+            color = e.target.value;
+        });
+
+        document.getElementById('lineWidth').addEventListener('input', (e) => {
+            lineWidth = e.target.value;
+        });
 
         // Modo libre: Dibujo de líneas libres con el mouse
         function startFreeDraw(e) {
@@ -56,9 +75,9 @@
         function drawFree(e) {
             if (!painting || drawingMode !== 'free') return;
             
-            ctx.lineWidth = 5;
+            ctx.lineWidth = lineWidth;
             ctx.lineCap = 'round';
-            ctx.strokeStyle = 'black';
+            ctx.strokeStyle = color;
 
             ctx.lineTo(e.clientX - canvas.offsetLeft, e.clientY - canvas.offsetTop);
             ctx.stroke();
@@ -92,8 +111,8 @@
         function drawArc(center, radius, startAngle, endAngle) {
             ctx.beginPath();
             ctx.arc(center.x, center.y, radius, startAngle, endAngle);
-            ctx.strokeStyle = 'blue';
-            ctx.lineWidth = 2;
+            ctx.strokeStyle = color;
+            ctx.lineWidth = lineWidth;
             ctx.stroke();
         }
 
